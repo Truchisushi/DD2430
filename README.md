@@ -1,4 +1,4 @@
-# DD2430
+# DD2430 - Deep Learning Project: Skeletonizer
 Skeletonizer Project
 ## Sources
 -TODO-
