@@ -171,34 +171,40 @@ def my_loss(output, target):
 
 if __name__ == "__main__":
 
-        #torch.set_default_tensor_type('torch.cuda.FloatTensor')
-        x = image_loader("./data/img_train_shape/beetle-2.png")
+
+        xs = [ './data/img_train_shape/'+ f for f in listdir('./data/img_train_shape/')]
+
+        #x = image_loader("./data/img_train_shape/beetle-2.png")
         #x = x.double()
-        y = image_loader("./data/img_train2/beetle-2.png")
+        ys = [ './data/img_train2/'+ f for f in listdir('./data/img_train2/')]
+        #y = image_loader("./data/img_train2/beetle-2.png")
         #y = y.double()
+        batchSize = len(xs)
         model = Skeltonizer()
         #model.double()
         model.cuda()
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        input = x
-        input = input.to(device)
-        target = y
-        target = target.to(device)
+
         criterion = nn.L1Loss()
         optimizer = optim.Adam(model.parameters(), lr=0.0001)
-        for i in range(2000):
+        for i in range(100):
             print(i)
-            optimizer.zero_grad()   # zero the gradient buffers
-            output = model(input)
-            loss = my_loss(output,target)
-            loss.backward()
-            optimizer.step()
-        imageCheck = transforms.ToPILImage()
-        p = output.cpu()
-        p[output>0.9] = 255
-        p[output<=0.9] = 0
-        result = (p).int()
-        trans = transforms.ToPILImage()
-        image = trans(result[0])
-        image.show()
+            for j in range(1218):
+                input = image_loader(xs[j])
+                input = input.to(device)
+                target = image_loader(ys[j])
+                target = target.to(device)
+
+                optimizer.zero_grad()   # zero the gradient buffers
+                output = model(input)
+                loss = my_loss(output,target)
+                loss.backward()
+                optimizer.step()
+            p = output.cpu()
+            p[output>0.9] = 255
+            p[output<=0.9] = 0
+            result = (p).int()
+            trans = transforms.ToPILImage()
+            image = trans(result[0])
+            image.show()
