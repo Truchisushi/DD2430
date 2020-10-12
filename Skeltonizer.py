@@ -108,9 +108,6 @@ class Skeltonizer(nn.Module):
         return output
 
 
-
-
-
 imsize = 256
 loader = transforms.Compose([
     transforms.Resize(imsize),  # scale imported image
@@ -118,19 +115,21 @@ loader = transforms.Compose([
 
 def image_loader(image_name):
     image = Image.open(image_name).convert('1')
-    # fake batch dimension required to fit network's input dimensions
-    #trans = transforms.ToPILImage()
-    #trans1 = transforms.ToTensor()
-    #image.show()
     image = loader(image).unsqueeze(0)
     return image
 
 
 def my_loss(output, target):
     ##################### Cross entropy & Dice Loss ##############################
-    #print(torch.isnan(output).any())
+    ##############Edit: Weighted Cross entropy Loss balanced with Dice Loss Loss ##################
+    #Balancing weight for loss functions
+    w1 = 0.01
+    w2 = 100
+    #Weight for cross entropy loss
+    wpos = 50
+    wneg = 0.75
     eps = np.finfo(float).eps
-    #diceLoss = 1 - (2*(torch.mul(target, output).sum())+eps) / ((target.sum() + output.sum()+eps))
+    diceLoss = (1 - (2*(torch.mul(target, output).sum())+eps) / ((target.sum() + output.sum()+eps)))
 
     #To avoid nan
     logo1 = torch.log(eps+output)
@@ -142,54 +141,33 @@ def my_loss(output, target):
     L2 = torch.mul(1-target,logo2)
     L2[target == 1] = 0
 
-    L = - (L1+L2).sum()
-
-    print(L.item())
-    return L
-
-    ############################### Weighted Focal Loss ########################################
-
-    #wpos = 50
-    #wneg = 0.75
-    #gamma = 2
-    #p = output
-
-    #p[target==0] = 1-p[target==0]
-
-    #print(p)
-
-    #logo = torch.log(p)
-    #L1 = torch.mul(torch.pow((1-p),gamma),logo)
-    #L1[target == 0] = 0
-
-    #logo = torch.log(1-p)
-    #L2 = torch.mul(torch.pow(p,gamma),logo)
-    #L2[target == 1] = 0
-
-    #L = -(L1+L2).sum()
-    #return L
+    L = - (wpos*L1+wneg*L2).sum()
+    #print(w1*L)
+    #print(w2*diceLoss)
+    Loss = w1*L + w2*diceLoss
+    #print(Loss)
+    return Loss
 
 if __name__ == "__main__":
 
-
+        # Save data
         xs = [ './data/img_train_shape/'+ f for f in listdir('./data/img_train_shape/')]
-
-        #x = image_loader("./data/img_train_shape/beetle-2.png")
-        #x = x.double()
         ys = [ './data/img_train2/'+ f for f in listdir('./data/img_train2/')]
-        #y = image_loader("./data/img_train2/beetle-2.png")
-        #y = y.double()
         batchSize = len(xs)
+
+        #create model, or load model
         model = Skeltonizer()
-        #model.double()
+        #model.load_state_dict(torch.load('./models'))
+        #model.eval()
+
         model.cuda()
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-
         criterion = nn.L1Loss()
         optimizer = optim.Adam(model.parameters(), lr=0.0001)
-        for i in range(100):
-            print(i)
+
+        # 500 epochs
+        for i in range(500):
+            # 1218 samples for training
             for j in range(1218):
                 input = image_loader(xs[j])
                 input = input.to(device)
@@ -201,10 +179,15 @@ if __name__ == "__main__":
                 loss = my_loss(output,target)
                 loss.backward()
                 optimizer.step()
-            p = output.cpu()
-            p[output>0.9] = 255
-            p[output<=0.9] = 0
-            result = (p).int()
-            trans = transforms.ToPILImage()
-            image = trans(result[0])
-            image.show()
+
+        #save the model after the training
+        torch.save(model.state_dict(), './models')
+
+        #output result as an image
+        p = output.cpu()
+        p[output>0.9] = 255
+        p[output<=0.9] = 0
+        result = (p).int()
+        trans = transforms.ToPILImage()
+        image = trans(result[0])
+        image.show()
