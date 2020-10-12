@@ -2,7 +2,7 @@
 Skeletonizer Project
 
 ## Note 2020/10/12
-Remove .DC_Store file from both directories before run.
+### Remove .DC_Store file from both directories before run.
 
 Input_path :"./data/img_train_shape/"
 
