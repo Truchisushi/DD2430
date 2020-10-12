@@ -5,7 +5,9 @@ Skeletonizer Project
 Remove .DC_Store file from both directories before run.
 
 Input_path :"./data/img_train_shape/"
+
 Output_path:"./data/img_train2/"
+
 Model_path :"./models"
 
 ## Data
