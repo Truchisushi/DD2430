@@ -168,7 +168,7 @@ if __name__ == "__main__":
         # 500 epochs
         for i in range(500):
             # 1218 samples for training
-            for j in range(1218):
+            for j in range(1118):
                 input = image_loader(xs[j])
                 input = input.to(device)
                 target = image_loader(ys[j])
