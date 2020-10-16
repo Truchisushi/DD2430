@@ -53,18 +53,18 @@ class Skeltonizer(nn.Module):
         dnc = nn.Sequential(
             nn.Conv2d(output_size,output_size,kernel_size=3,padding=(1,1)),
             nn.Conv2d(output_size,output_size,kernel_size=3,padding=(1,1)),
-            nn.Conv2d(output_size,output_size,kernel_size=3,padding=(1,1)),
-            nn.Conv2d(output_size,output_size,kernel_size=3,padding=(1,1)),
             nn.Conv2d(output_size,output_size,kernel_size=3,padding=(1,1))
+            #nn.Conv2d(output_size,output_size,kernel_size=3,padding=(1,1)),
+            #nn.Conv2d(output_size,output_size,kernel_size=3,padding=(1,1))
         )
         return dnc
 
     def UpConv(self,input_size, output_size):
         upc = nn.Sequential(
             nn.Conv2d(input_size,output_size,kernel_size = 3,padding=(1,1)), # *2 Denote convolution layer
-            nn.Conv2d(output_size,output_size,kernel_size = 3,padding=(1,1)),
-            nn.Conv2d(output_size,output_size,kernel_size = 3,padding=(1,1)),
             nn.Conv2d(output_size,output_size,kernel_size = 3,padding=(1,1))
+            #nn.Conv2d(output_size,output_size,kernel_size = 3,padding=(1,1)),
+            #nn.Conv2d(output_size,output_size,kernel_size = 3,padding=(1,1))
         )
         return upc
 
@@ -135,9 +135,9 @@ def load_data(xs, ys):
 
 class ImageDataSet(Dataset):
 
-    def __init__(self, images, targets):
-        self.images = images
-        self.targets = targets
+    def __init__(self, images, targets, size=-1):
+        self.images = images[:size]
+        self.targets = targets[:size]
 
     def __len__(self):
         return len(self.images)
@@ -152,8 +152,9 @@ def my_loss(output, target):
     ##################### Cross entropy & Dice Loss ##############################
     ##############Edit: Weighted Cross entropy Loss balanced with Dice Loss Loss ##################
     #Balancing weight for loss functions
-    w1 = 0.01
-    w2 = 100
+    batch_size = output.shape[0]
+    w1 = 0.5
+    w2 = 0.5
     #Weight for cross entropy loss
     wpos = 50
     wneg = 0.75
@@ -170,7 +171,7 @@ def my_loss(output, target):
     L2 = torch.mul(1-target,logo2)
     L2[target == 1] = 0
 
-    L = - (wpos*L1+wneg*L2).sum()
+    L = - (wpos*L1+wneg*L2).sum() / (output.shape[0] * output.shape[1] * output.shape[2] * output.shape[3])
     #print(w1*L)
     #print(w2*diceLoss)
     Loss = w1*L + w2*diceLoss
@@ -179,30 +180,31 @@ def my_loss(output, target):
 
 if __name__ == "__main__":
 
-        batch_size = 1      #batch size
+        batch_size = 4      #batch size
         shuffle = False     #data augmentation shuffling
-        epochs = 2       #number of epochs
+        epochs = 30       #number of epochs
         num_workers = 4
+        dataset_size = 128
 
 
         # Save data
         xs = [ './data/img_train_shape/'+ f for f in listdir('./data/img_train_shape/')]
         ys = [ './data/img_train2/'+ f for f in listdir('./data/img_train2/')]
-        train_size = len(xs)
 
         xs_val = ['./data/validation_input/'+ f for f in listdir('./data/validation_input/')]
         ys_val = [ './data/validation_output/'+ f for f in listdir('./data/validation_output/')]
-        val_size = len(xs_val)
 
-        train_data = ImageDataSet(xs, ys)
-        val_data = ImageDataSet(xs_val, ys_val)
+        train_data = ImageDataSet(xs, ys, size=dataset_size)
+        val_data = ImageDataSet(xs_val, ys_val, size=dataset_size)
 
         print("Configuring DataLoader for training set")
         train_loader = DataLoader(dataset = train_data, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
+        train_size = len(train_loader)
         print("Done.")
 
         print("Configuring DataLoader for Validation set")
         val_loader = DataLoader(dataset=val_data, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
+        val_size = len(val_loader)
         print("Done.")
 
         #create model, or load model
@@ -275,12 +277,12 @@ if __name__ == "__main__":
 
         #save the model after the training
             end = time.time()
-            print("Epoch %d/500, %d s, loss: %d, val: %d" % (i, end - start, train_loss, val_loss))
+            print("Epoch %d/500, %d s, loss: %f, val: %f" % (i, end - start, train_loss, val_loss))
         torch.save(model.state_dict(), './models')
 
-        plt.plot(train_loss, epochs)
-        plt.plot(val_loss, epochs)
-        plt.legend(["train, vak"])
+        plt.plot(e, train_losses)
+        plt.plot(e, val_losses)
+        plt.legend(["train", "vak"])
         plt.savefig("loss_plot.png")
         plt.show()
 
