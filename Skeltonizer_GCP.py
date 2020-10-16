@@ -275,7 +275,7 @@ if __name__ == "__main__":
 
         #save the model after the training
             end = time.time()
-            print("Epoch %d/500, %d s, loss: %d, val: %d" % (i, end - start, train_loss, val_loss))
+            print("Epoch %d/%d, %d s, loss: %d, val: %d" % (i, epochs, end - start, train_loss, val_loss))
         torch.save(model.state_dict(), './models')
 
         plt.plot(train_loss, epochs)
