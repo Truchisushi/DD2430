@@ -138,9 +138,9 @@ def load_data(xs, ys):
 
 class ImageDataSet(Dataset):
 
-    def __init__(self, images, targets):
-        self.images = images
-        self.targets = targets
+    def __init__(self, images, targets, dataset_size=-1):
+        self.images = images[:dataset_size]
+        self.targets = targets[:dataset_size]
 
     def __len__(self):
         return len(self.images)
@@ -183,11 +183,11 @@ def my_loss(output, target):
 
 if __name__ == "__main__":
 
-        batch_size = 1      #batch size. 
-        shuffle = False     #data augmentation shuffling. Set to true to shuffle
+        batch_size = 1      #batch size.
+        shuffle = True     #data augmentation shuffling. Set to true to shuffle
         epochs = 500       #number of epochs
         num_workers = 0
-        dataset_size = -1 #Change this to the number of images to test on
+        dataset_size = 32 #Change this to the number of images to test on
 
 
         # Save data
@@ -198,7 +198,7 @@ if __name__ == "__main__":
         xs_val = ['./data/validation_input/'+ f for f in listdir('./data/validation_input/')]
         ys_val = [ './data/validation_output/'+ f for f in listdir('./data/validation_output/')]
 
-        train_data = ImageDataSet(xs, ys)
+        train_data = ImageDataSet(xs, ys, dataset_size)
         val_data = ImageDataSet(xs_val, ys_val)
 
         print("Configuring DataLoader for training set")
