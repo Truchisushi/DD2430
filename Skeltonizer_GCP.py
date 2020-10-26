@@ -13,6 +13,9 @@ import copy
 import math
 import time
 
+import scipy.misc
+
+
 
 
 from torch.utils.data import DataLoader, Dataset
@@ -135,9 +138,9 @@ def load_data(xs, ys):
 
 class ImageDataSet(Dataset):
 
-    def __init__(self, images, targets, size=-1):
-        self.images = images[:size]
-        self.targets = targets[:size]
+    def __init__(self, images, targets):
+        self.images = images
+        self.targets = targets
 
     def __len__(self):
         return len(self.images)
@@ -180,22 +183,23 @@ def my_loss(output, target):
 
 if __name__ == "__main__":
 
-        batch_size = 4      #batch size
-        shuffle = False     #data augmentation shuffling
-        epochs = 30       #number of epochs
-        num_workers = 4
-        dataset_size = 128
+        batch_size = 1      #batch size. 
+        shuffle = False     #data augmentation shuffling. Set to true to shuffle
+        epochs = 500       #number of epochs
+        num_workers = 0
+        dataset_size = -1 #Change this to the number of images to test on
 
 
         # Save data
         xs = [ './data/img_train_shape/'+ f for f in listdir('./data/img_train_shape/')]
         ys = [ './data/img_train2/'+ f for f in listdir('./data/img_train2/')]
 
+
         xs_val = ['./data/validation_input/'+ f for f in listdir('./data/validation_input/')]
         ys_val = [ './data/validation_output/'+ f for f in listdir('./data/validation_output/')]
 
-        train_data = ImageDataSet(xs, ys, size=dataset_size)
-        val_data = ImageDataSet(xs_val, ys_val, size=dataset_size)
+        train_data = ImageDataSet(xs, ys)
+        val_data = ImageDataSet(xs_val, ys_val)
 
         print("Configuring DataLoader for training set")
         train_loader = DataLoader(dataset = train_data, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
@@ -209,7 +213,7 @@ if __name__ == "__main__":
 
         #create model, or load model
         model = Skeltonizer()
-        #model.load_state_dict(torch.load('./models'))
+        model.load_state_dict(torch.load('./models'))
         model.eval()
         print(model)
 
@@ -217,6 +221,7 @@ if __name__ == "__main__":
         model.cuda()
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model.to(device)
+
         criterion = nn.L1Loss()
         optimizer = optim.Adam(model.parameters(), lr=0.0001)
 
@@ -285,13 +290,3 @@ if __name__ == "__main__":
         plt.legend(["train", "vak"])
         plt.savefig("loss_plot.png")
         plt.show()
-
-        #output result as an image
-        p = output.cpu()
-        p[output>0.9] = 255
-        p[output<=0.9] = 0
-        result = (p).int()
-        trans = transforms.ToPILImage()
-        image = trans(result[0])
-        image.show()
-        image.save("output_result.png")
