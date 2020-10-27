@@ -319,6 +319,6 @@ if __name__ == "__main__":
 
         plt.plot(e, train_losses)
         plt.plot(e, val_losses)
-        plt.legend(["train", "vak"])
+        plt.legend(["train", "val"])
         plt.savefig("loss_plot.png")
         plt.show()
