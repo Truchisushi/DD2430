@@ -181,6 +181,38 @@ def my_loss(output, target):
     #print(Loss)
     return Loss
 
+    ################# Weighted Focal loss + dice loss #####################
+
+    #Balancing weight for loss functions
+    #batch_size = output.shape[0]
+    #w1 = 9
+    #w2 = 1 #Dice Loss
+    #eps = np.finfo(float).eps
+    #diceLoss = (1 - (2*(torch.mul(target, output).sum())+eps) / ((target.sum() + output.sum()+eps)))
+
+    #wpos = 50
+    #wneg = 0.75
+    #gamma = 2
+
+    #logo1 = torch.log(eps+output)
+    #L1 = torch.mul(target,logo1)
+    #pos_focal = (1-output)**gamma
+    #L1 = torch.mul(pos_focal,L1)
+    #L1[target == 0] = 0
+
+    #l2 = 1.0 - output
+    #logo2 = torch.log(eps+l2)
+
+    #L2 = torch.mul(1-target,logo2)
+    #neg_focal = (1-l2)**gamma
+    #L2 = torch.mul(neg_focal,L2)
+    #L2[target == 1] = 0
+
+    #WFL = -(wpos * L1 + wneg * L2).sum()/ (output.shape[0] * output.shape[1] * output.shape[2] * output.shape[3])
+    #Loss = w1*WFL + w2*diceLoss
+    #print(WFL)
+    #print(diceLoss)
+    #return Loss
 if __name__ == "__main__":
 
         batch_size = 1      #batch size.
