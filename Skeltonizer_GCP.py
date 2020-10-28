@@ -139,15 +139,24 @@ def load_data(xs, ys):
 class ImageDataSet(Dataset):
 
     def __init__(self, images, targets, dataset_size=-1):
-        self.images = images[:dataset_size]
-        self.targets = targets[:dataset_size]
+        self.size = len(images) if dataset_size == -1 else dataset_size
+        self.images = torch.empty(self.size, 1, imsize, imsize)
+        self.targets = torch.empty(self.size, 1, imsize, imsize)
+        for i in range(self.size):
+            self.images[i, ...] = image_loader(images[i])
+            self.targets[i, ...] = image_loader(targets[i])
+
+        #self.images = images[:dataset_size]
+        #self.targets = targets[:dataset_size]
 
     def __len__(self):
-        return len(self.images)
+        return self.size
 
     def __getitem__(self, index):
-        X = image_loader(self.images[index])
-        y = image_loader(self.targets[index])
+        #X = image_loader(self.images[index])
+        #y = image_loader(self.targets[index])
+        X = self.images[index, ...]
+        y = self.targets[index, ...]
 
         return X, y
 
@@ -215,11 +224,12 @@ def my_loss(output, target):
     #return Loss
 if __name__ == "__main__":
 
-        batch_size = 1      #batch size.
+
+        batch_size = 4      #batch size.
         shuffle = True     #data augmentation shuffling. Set to true to shuffle
-        epochs = 500       #number of epochs
-        num_workers = 0
-        dataset_size = 32 #Change this to the number of images to test on
+        epochs = 10       #number of epochs
+        num_workers = 4
+        dataset_size = 128   #Change this to the number of images to test on
 
 
         # Save data
@@ -234,13 +244,13 @@ if __name__ == "__main__":
         val_data = ImageDataSet(xs_val, ys_val)
 
         print("Configuring DataLoader for training set")
-        train_loader = DataLoader(dataset = train_data, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
-        train_size = len(train_loader)
+        train_loader = DataLoader(dataset = train_data, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=True)
+        train_size = 1.0 * len(train_loader)
         print("Done.")
 
         print("Configuring DataLoader for Validation set")
-        val_loader = DataLoader(dataset=val_data, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
-        val_size = len(val_loader)
+        val_loader = DataLoader(dataset=val_data, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True)
+        val_size = 1.0 * len(val_loader)
         print("Done.")
 
         #create model, or load model
@@ -259,8 +269,8 @@ if __name__ == "__main__":
 
 
         e = np.arange(0, epochs)
-        train_losses = np.zeros(epochs)
-        val_losses = np.zeros(epochs)
+        train_losses = np.empty(epochs)
+        val_losses = np.empty(epochs)
 
         #train num epochs
         model.train()
@@ -269,52 +279,42 @@ if __name__ == "__main__":
             start = time.time()
             count = 0
             # samples for training
-            train_loss = 0
-            val_loss = 0
+            train_loss = 0.0
+            val_loss = 0.0
             for data, target in train_loader:
-                #fig, axs = plt.subplots(2)
-                #axs[0].imshow(np.squeeze(data.numpy()))
-                #axs[1].imshow(np.squeeze(target.numpy()))
-                plt.show()
                 print(count)
-                #input = image_loader(xs[j])
-                #input = input.to(device)
-                #target = image_loader(ys[j])
-                #target = target.to(device)
-                input = data.to(device)
+                data = data.to(device)
                 target = target.to(device)
 
-
-
                 optimizer.zero_grad()   # zero the gradient buffers
-                output = model(input)
-                loss = my_loss(output,target)
-                train_loss += loss.item() / train_size
-
+                output = model(data)
+                loss = my_loss(output, target)
                 loss.backward()
                 optimizer.step()
 
+                train_loss += loss.item()
 
                 count = count + 1
 
-            train_losses[i] = train_loss
+            train_losses[i] = train_loss / train_size
 
+            #model.eval()
             with torch.no_grad():
                 for data, target in val_loader:
-                    input = data.to(device)
+                    data = data.to(device)
                     target = target.to(device)
 
-                    output = model(input)
+                    output = model(data)
                     loss = my_loss(output, target)
 
-                    val_loss += loss.item() / val_size
+                    val_loss += loss.item()
 
-            val_losses[i] = val_loss
+            val_losses[i] = val_loss / val_size
 
-
-        #save the model after the training
             end = time.time()
-            print("Epoch %d/%d, %d s, loss: %f, val: %f" % (i, epochs, end - start, train_loss, val_loss))
+            print("Epoch %d/%d, %d s, loss: %f, val: %f" % (i, epochs, end - start, train_losses[i], val_losses[i]))
+
+        # save the model after the training
         torch.save(model.state_dict(), './models')
 
         plt.plot(e, train_losses)
