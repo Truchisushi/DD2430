@@ -12,6 +12,7 @@ from os.path import isfile, join
 import copy
 import math
 import time
+from scipy.ndimage import distance_transform_edt as distance_trans
 
 import scipy.misc
 
@@ -143,7 +144,8 @@ class ImageDataSet(Dataset):
         self.images = torch.empty(self.size, 1, imsize, imsize)
         self.targets = torch.empty(self.size, 1, imsize, imsize)
         for i in range(self.size):
-            self.images[i, ...] = image_loader(images[i])
+            tmp = distance_trans(image_loader(images[i]).numpy())       #Apply distance transform
+            self.images[i, ...] = torch.from_numpy(tmp / tmp.max())     #Normalize
             self.targets[i, ...] = image_loader(targets[i])
 
         #self.images = images[:dataset_size]
@@ -168,7 +170,7 @@ def my_loss(output, target):
     w1 = 0.5
     w2 = 0.5
     #Weight for cross entropy loss
-    wpos = 50
+    wpos = 15
     wneg = 0.75
     eps = np.finfo(float).eps
     diceLoss = (1 - (2*(torch.mul(target, output).sum())+eps) / ((target.sum() + output.sum()+eps)))
@@ -186,55 +188,58 @@ def my_loss(output, target):
     L = - (wpos*L1+wneg*L2).sum() / (output.shape[0] * output.shape[1] * output.shape[2] * output.shape[3])
     #print(w1*L)
     #print(w2*diceLoss)
-    Loss = w1*L + w2*diceLoss
+    Loss = w1*L #+ w2*diceLoss
     #print(Loss)
     return Loss
 
     ################# Weighted Focal loss + dice loss #####################
-
+    """
     #Balancing weight for loss functions
     #batch_size = output.shape[0]
-    #w1 = 9
-    #w2 = 1 #Dice Loss
-    #eps = np.finfo(float).eps
-    #diceLoss = (1 - (2*(torch.mul(target, output).sum())+eps) / ((target.sum() + output.sum()+eps)))
+    w1 = 1
+    w2 = 1 #Dice Loss
+    eps = np.finfo(float).eps
+    diceLoss = (1 - (2*(torch.mul(target, output).sum())+eps) / ((target.sum() + output.sum()+eps)))
 
-    #wpos = 50
-    #wneg = 0.75
-    #gamma = 2
+    wpos = 50
+    wneg = 0.75
+    gamma = 2
 
-    #logo1 = torch.log(eps+output)
-    #L1 = torch.mul(target,logo1)
-    #pos_focal = (1-output)**gamma
-    #L1 = torch.mul(pos_focal,L1)
-    #L1[target == 0] = 0
+    logo1 = torch.log(eps+output)
+    L1 = torch.mul(target,logo1)
+    pos_focal = (1-output)**gamma
+    L1 = torch.mul(pos_focal,L1)
+    L1[target == 0] = 0
 
-    #l2 = 1.0 - output
-    #logo2 = torch.log(eps+l2)
+    l2 = 1.0 - output
+    logo2 = torch.log(eps+l2)
 
-    #L2 = torch.mul(1-target,logo2)
-    #neg_focal = (1-l2)**gamma
-    #L2 = torch.mul(neg_focal,L2)
-    #L2[target == 1] = 0
+    L2 = torch.mul(1-target,logo2)
+    neg_focal = (1-l2)**gamma
+    L2 = torch.mul(neg_focal,L2)
+    L2[target == 1] = 0
 
-    #WFL = -(wpos * L1 + wneg * L2).sum()/ (output.shape[0] * output.shape[1] * output.shape[2] * output.shape[3])
-    #Loss = w1*WFL + w2*diceLoss
+    WFL = -(wpos * L1 + wneg * L2).sum()/ (output.shape[0] * output.shape[1] * output.shape[2] * output.shape[3])
+    Loss = w1*WFL #+ w2*diceLoss
     #print(WFL)
     #print(diceLoss)
-    #return Loss
+    return Loss
+    """
 if __name__ == "__main__":
+        np.random.seed(1)
+        torch.manual_seed(1)
+        torch.cuda.manual_seed(1)
 
-
-        batch_size = 4      #batch size.
+        batch_size = 32      #batch size.
         shuffle = True     #data augmentation shuffling. Set to true to shuffle
-        epochs = 10       #number of epochs
+        epochs = 100       #number of epochs
         num_workers = 4
-        dataset_size = 128   #Change this to the number of images to test on
+        dataset_size = -1   #Change this to the number of images to test on
 
 
         # Save data
-        xs = [ './data/img_train_shape/'+ f for f in listdir('./data/img_train_shape/')]
-        ys = [ './data/img_train2/'+ f for f in listdir('./data/img_train2/')]
+        xs = [ './data/img_train_shape_AUG/'+ f for f in listdir('./data/img_train_shape_AUG/')]
+        ys = [ './data/img_train2_AUG/'+ f for f in listdir('./data/img_train2_AUG/')]
 
 
         xs_val = ['./data/validation_input/'+ f for f in listdir('./data/validation_input/')]
@@ -255,7 +260,7 @@ if __name__ == "__main__":
 
         #create model, or load model
         model = Skeltonizer()
-        model.load_state_dict(torch.load('./models'))
+        #model.load_state_dict(torch.load('./models'))
         model.eval()
         print(model)
 
@@ -265,7 +270,7 @@ if __name__ == "__main__":
         model.to(device)
 
         criterion = nn.L1Loss()
-        optimizer = optim.Adam(model.parameters(), lr=0.0001)
+        optimizer = optim.Adam(model.parameters(), lr=0.0001, weight_decay=0.00001)
 
 
         e = np.arange(0, epochs)
