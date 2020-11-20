@@ -14,3 +14,4 @@ Model_path :"./models"
 The data is the SkelNetOn Challenge dataset. The data is comprised by black and white input images
 
 ## Architecture
+![Network Schematic](https://github.com/Truchisushi/DD2430/blob/main/images/Network%20Architecture%201.png?raw=true)
