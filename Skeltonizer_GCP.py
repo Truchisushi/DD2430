@@ -15,9 +15,7 @@ import time
 from scipy.ndimage import distance_transform_edt as distance_trans
 
 import scipy.misc
-
-
-
+from torch.optim.lr_scheduler import ExponentialLR
 
 from torch.utils.data import DataLoader, Dataset
 
@@ -28,18 +26,18 @@ class Skeltonizer(nn.Module):
         super(Skeltonizer, self).__init__()
         #Initiate all layers
         self.MaxPool = nn.MaxPool2d(kernel_size=2, stride=2)
-        self.Downsamp1 = nn.Conv2d(1,32,kernel_size=3,padding=(1,1))
-        self.DownConv1 = self.DownConv(32)
-        self.Downsamp2 = nn.Conv2d(32,64,kernel_size=3,padding=(1,1))
-        self.DownConv2 = self.DownConv(64)
-        self.Downsamp3 = nn.Conv2d(64,128,kernel_size=3,padding=(1,1))
-        self.DownConv3 = self.DownConv(128)
-        self.Downsamp4 = nn.Conv2d(128,256,kernel_size=3,padding=(1,1))
-        self.DownConv4 = self.DownConv(256)
-        self.Downsamp5 = nn.Conv2d(256,512,kernel_size=3,padding=(1,1))
-        self.DownConv5 = self.DownConv(512)
+        #self.Downsamp1 = nn.Conv2d(1,32,kernel_size=3,padding=(1,1))
+        self.DownConv1 = self.DownConv(1, 32)
+        #self.Downsamp2 = nn.Conv2d(32,64,kernel_size=3,padding=(1,1))
+        self.DownConv2 = self.DownConv(32, 64)
+        #self.Downsamp3 = nn.Conv2d(64,128,kernel_size=3,padding=(1,1))
+        self.DownConv3 = self.DownConv(64, 128)
+        #self.Downsamp4 = nn.Conv2d(128,256,kernel_size=3,padding=(1,1))
+        self.DownConv4 = self.DownConv(128, 256)
+        #self.Downsamp5 = nn.Conv2d(256,512,kernel_size=3,padding=(1,1))
+        self.DownConv5 = self.DownConv(256, 512)
         self.BottleNeck1 = nn.Conv2d(512,1024,kernel_size=1)
-        self.ReLU = nn.ReLU(inplace = True)
+        self.ReLU = nn.ReLU()
         self.BottleNeck2 = nn.Conv2d(1024,1024,kernel_size=1)
         self.convT1 = nn.ConvTranspose2d(in_channels=1024, out_channels=512, kernel_size=2, stride=2)
         self.UpConv1 = self.UpConv(1024,512)
@@ -53,47 +51,70 @@ class Skeltonizer(nn.Module):
         self.UpConv5 = self.UpConv(64,32)
         self.Outputlayer = nn.Conv2d(32,1,kernel_size=1)
 
-    def DownConv(self,output_size):
+    def DownConv(self,input_size, output_size):
         dnc = nn.Sequential(
+            nn.Conv2d(input_size,output_size,kernel_size=3,padding=(1,1)),
+            nn.ReLU(),
             nn.Conv2d(output_size,output_size,kernel_size=3,padding=(1,1)),
+            nn.ReLU(),
             nn.Conv2d(output_size,output_size,kernel_size=3,padding=(1,1)),
+            nn.ReLU(),
+            nn.Conv2d(output_size,output_size,kernel_size=3,padding=(1,1)),
+            nn.ReLU(),
             nn.Conv2d(output_size,output_size,kernel_size=3,padding=(1,1))
-            #nn.Conv2d(output_size,output_size,kernel_size=3,padding=(1,1)),
-            #nn.Conv2d(output_size,output_size,kernel_size=3,padding=(1,1))
         )
         return dnc
 
     def UpConv(self,input_size, output_size):
         upc = nn.Sequential(
             nn.Conv2d(input_size,output_size,kernel_size = 3,padding=(1,1)), # *2 Denote convolution layer
+            nn.ReLU(),
+            nn.Conv2d(output_size,output_size,kernel_size = 3,padding=(1,1)),
+            nn.ReLU(),
+            nn.Conv2d(output_size,output_size,kernel_size = 3,padding=(1,1)),
+            nn.ReLU(),
             nn.Conv2d(output_size,output_size,kernel_size = 3,padding=(1,1))
-            #nn.Conv2d(output_size,output_size,kernel_size = 3,padding=(1,1)),
-            #nn.Conv2d(output_size,output_size,kernel_size = 3,padding=(1,1))
         )
         return upc
 
     def forward(self, x):
+        #apply distance transform:
+
+
+
+
         #Expand feature space for input image
         #x = self.inputConv(x)
         #Decoder
-        x1 = self.Downsamp1(x)
-        x1 = self.DownConv1(x1) + x1
+        #x1 = self.Downsamp1(x)
+        #x1 = self.DownConv1(x1) + x1
+        x1 = self.DownConv1(x)
+        #x1 = self.Downsamp1(x1)
         x2 = self.MaxPool(x1)
 
-        x3 = self.Downsamp2(x2)
-        x3 = self.DownConv2(x3) + x3
+
+        #x3 = self.Downsamp2(x2)
+        #x3 = self.DownConv2(x3) + x3
+        x3 = self.DownConv2(x2)
+        #x3 = self.Downsamp2
         x4 = self.MaxPool(x3)
 
-        x5 = self.Downsamp3(x4)
-        x5 = self.DownConv3(x5) + x5
+        #x5 = self.Downsamp3(x4)
+        #x5 = self.DownConv3(x5) + x5
+        x5 = self.DownConv3(x4)
+        #x5 = self.Downsamp3(x5)
         x6 = self.MaxPool(x5)
 
-        x7 = self.Downsamp4(x6)
-        x7 = self.DownConv4(x7) + x7
+        #x7 = self.Downsamp4(x6)
+        #x7 = self.DownConv4(x7) + x7
+        x7 = self.DownConv4(x6)
+        #x7 = self.Downsamp4(x7)
         x8 = self.MaxPool(x7)
 
-        x9 = self.Downsamp5(x8)
-        x9 = self.DownConv5(x9) + x9
+        #x9 = self.Downsamp5(x8)
+        #x9 = self.DownConv5(x9) + x9
+        x9 = self.DownConv5(x8)
+        #x9 = self.Downsamp5(x9)
         x10 = self.MaxPool(x9)
 
         #Bottle Neck
@@ -144,8 +165,8 @@ class ImageDataSet(Dataset):
         self.images = torch.empty(self.size, 1, imsize, imsize)
         self.targets = torch.empty(self.size, 1, imsize, imsize)
         for i in range(self.size):
-            tmp = distance_trans(image_loader(images[i]).numpy())       #Apply distance transform
-            self.images[i, ...] = torch.from_numpy(tmp / tmp.max())     #Normalize
+            #tmp = distance_trans(image_loader(images[i]).numpy())    #Apply distance transform
+            self.images[i, ...] = image_loader(images[i]) #torch.from_numpy(tmp / tmp.max() )     #Normalize
             self.targets[i, ...] = image_loader(targets[i])
 
         #self.images = images[:dataset_size]
@@ -158,22 +179,25 @@ class ImageDataSet(Dataset):
         #X = image_loader(self.images[index])
         #y = image_loader(self.targets[index])
         X = self.images[index, ...]
+        tmp = X.numpy()
         y = self.targets[index, ...]
 
         return X, y
 
 def my_loss(output, target):
+    """
     ##################### Cross entropy & Dice Loss ##############################
     ##############Edit: Weighted Cross entropy Loss balanced with Dice Loss Loss ##################
     #Balancing weight for loss functions
+
     batch_size = output.shape[0]
-    w1 = 0.5
-    w2 = 0.5
+    w1 = 0.3
+    w2 = 0.7
     #Weight for cross entropy loss
     wpos = 15
     wneg = 0.75
     eps = np.finfo(float).eps
-    diceLoss = (1 - (2*(torch.mul(target, output).sum())+eps) / ((target.sum() + output.sum()+eps)))
+    diceLoss = (1 - (2*(torch.mul(target, output).sum())+eps) / ((torch.mul(target, target).sum() + torch.mul(output, output).sum()+eps)))
 
     #To avoid nan
     logo1 = torch.log(eps+output)
@@ -188,12 +212,12 @@ def my_loss(output, target):
     L = - (wpos*L1+wneg*L2).sum() / (output.shape[0] * output.shape[1] * output.shape[2] * output.shape[3])
     #print(w1*L)
     #print(w2*diceLoss)
-    Loss = w1*L #+ w2*diceLoss
+    Loss = w1*L + w2*diceLoss
     #print(Loss)
     return Loss
-
-    ################# Weighted Focal loss + dice loss #####################
     """
+    ################# Weighted Focal loss + dice loss #####################
+
     #Balancing weight for loss functions
     #batch_size = output.shape[0]
     w1 = 1
@@ -224,13 +248,13 @@ def my_loss(output, target):
     #print(WFL)
     #print(diceLoss)
     return Loss
-    """
-if __name__ == "__main__":
-        np.random.seed(1)
-        torch.manual_seed(1)
-        torch.cuda.manual_seed(1)
 
-        batch_size = 32      #batch size.
+if __name__ == "__main__":
+        #np.random.seed(1)
+       # torch.manual_seed(1)
+       # torch.cuda.manual_seed(1)
+
+        batch_size = 16      #batch size.
         shuffle = True     #data augmentation shuffling. Set to true to shuffle
         epochs = 100       #number of epochs
         num_workers = 4
@@ -270,16 +294,21 @@ if __name__ == "__main__":
         model.to(device)
 
         criterion = nn.L1Loss()
-        optimizer = optim.Adam(model.parameters(), lr=0.0001, weight_decay=0.00001)
+        optimizer = optim.Adam(model.parameters(), lr=0.0001)
 
 
         e = np.arange(0, epochs)
         train_losses = np.empty(epochs)
         val_losses = np.empty(epochs)
 
+        #Adjust learning rate by multiplying LR-factor with lambda:
+        gamma = 0.95 #lambda lmbda: 0.95
+        scheduler = ExponentialLR(optimizer, gamma=gamma)
+
         #train num epochs
         model.train()
         for i in range(epochs):
+
             print()
             start = time.time()
             count = 0
@@ -317,8 +346,15 @@ if __name__ == "__main__":
             val_losses[i] = val_loss / val_size
 
             end = time.time()
-            print("Epoch %d/%d, %d s, loss: %f, val: %f" % (i, epochs, end - start, train_losses[i], val_losses[i]))
+            lr = 0
+            for param_group in optimizer.param_groups: lr=param_group['lr']
+            print("Epoch %d/%d, %d s, loss: %f, val: %f, lr: %f" % (i, epochs, end - start, train_losses[i], val_losses[i], lr))
 
+            scheduler.step()
+
+            if (i % 5 == 0):
+                print("Saving model!")
+                torch.save(model.state_dict(), './models_e'+str(i))
         # save the model after the training
         torch.save(model.state_dict(), './models')
 
