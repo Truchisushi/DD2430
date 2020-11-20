@@ -4,6 +4,7 @@ from matplotlib import pyplot as plt
 from os import listdir
 from Skeltonizer_GCP import ImageDataSet, Skeltonizer
 from torch.utils.data import DataLoader, Dataset
+from JustF1Score import main
 
 batch_size = 1  # batch size
 shuffle = False  # data augmentation shuffling
@@ -32,46 +33,51 @@ val_size = len(val_loader)
 print("Done.")
 
 # create model, or load model
-model = Skeltonizer()
-model.load_state_dict(torch.load('./models'))
-model.eval()
-print(model)
+s = 'focal_loss_expLRdecay096/models_e35'
 
-print(torch.cuda.get_device_name() if torch.cuda.is_available() else "cpu")
+
+model = Skeltonizer()
+model.load_state_dict(torch.load(s))
+model.eval()
+#print(model)
+
+#print(torch.cuda.get_device_name() if torch.cuda.is_available() else "cpu")
 model.cuda()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
 
+for thresh in np.arange(0.6, 1.0, 0.01):
+    count = 0
+    result_array = np.empty(shape=(val_size, 256, 256))
+    for data, target in val_loader:
+        input = data.to(device)
+        target = target.to(device)
 
-count = 0
-result_array = np.empty(shape=(val_size, 256, 256))
-for data, target in train_loader:
-    input = data.to(device)
-    target = target.to(device)
+        output = model(input)
 
-    output = model(input)
-
-    # output result as an image
-    p = output.cpu().detach().numpy()
-    t = target.cpu().squeeze()
-    i = input.cpu().squeeze()
-    p[p > 0.5] = 255
-    p[p <= 0.5] = 0
-    result_array[count, ...] = p.squeeze()
-    f, axarr = plt.subplots(1, 3)
-    axarr[0].imshow(p.squeeze(), cmap='gray')
-    axarr[1].imshow(t, cmap='gray')
-    axarr[2].imshow(i, cmap='gray')
-    plt.savefig('train' + str(count) + '.png', p.squeeze())
-    plt.show()
-    count += 1
-    # p[torch.argmax(output, keepdim=True)] = 255
-    # p[output<=0.9] = 0
-    # result = (p).int()
-    # trans = transforms.ToPILImage()
-    # image = trans(result[0])
-    # image.save("output_result.png", "PNG")
-    # image.show()
-    # time.sleep(1)
-print(result_array.shape)
-np.save("result", result_array)
+        # output result as an image
+        p = output.cpu().detach().numpy()
+        t = target.cpu().squeeze()
+        i = input.cpu().squeeze()
+        p[p > thresh] = 255
+        p[p <= thresh] = 0
+        result_array[count, ...] = p.squeeze()
+        f, axarr = plt.subplots(1, 3)
+        axarr[0].imshow(p.squeeze(), cmap='gray')
+        axarr[1].imshow(t, cmap='gray')
+        axarr[2].imshow(i, cmap='gray')
+        #plt.savefig('train' + str(count) + '.png')
+        plt.show()
+        count += 1
+        # p[torch.argmax(output, keepdim=True)] = 255
+        # p[output<=0.9] = 0
+        # result = (p).int()
+        # trans = transforms.ToPILImage()
+        # image = trans(result[0])
+        # image.save("output_result.png", "PNG")
+        # image.show()
+        # time.sleep(1)
+    #print(result_array.shape)
+    np.save("result", result_array)
+    print("Threshold: " + str(thresh))
+    main()
