@@ -252,8 +252,8 @@ if __name__ == "__main__":
 
 
         e = np.arange(0, epochs)
-        train_losses = np.empty(epochs)
-        val_losses = np.empty(epochs)
+        train_losses = np.zeroes(epochs)
+        val_losses = np.zeroes(epochs)
 
         #Adjust learning rate by multiplying LR-factor with lambda:
         gamma = 0.95 #lambda lmbda: 0.95
@@ -278,24 +278,16 @@ if __name__ == "__main__":
                 loss.backward()
                 optimizer.step()
 
-                train_loss += loss.item()
-
-                count = count + 1
-
-            train_losses[i] = train_loss / train_size
+                train_losses[i] += loss.item()/train_size
 
             #model.eval()
             with torch.no_grad():
                 for data, target in val_loader:
                     data = data.to(device)
                     target = target.to(device)
-
                     output = model(data)
                     loss = my_loss(output, target)
-
-                    val_loss += loss.item()
-
-            val_losses[i] = val_loss / val_size
+                    val_losses[i] += loss.item()/val_size
 
             end = time.time()
             lr = 0
