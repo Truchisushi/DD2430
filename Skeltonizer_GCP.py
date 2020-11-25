@@ -26,15 +26,10 @@ class Skeltonizer(nn.Module):
         super(Skeltonizer, self).__init__()
         #Initiate all layers
         self.MaxPool = nn.MaxPool2d(kernel_size=2, stride=2)
-        #self.Downsamp1 = nn.Conv2d(1,32,kernel_size=3,padding=(1,1))
         self.DownConv1 = self.DownConv(1, 32)
-        #self.Downsamp2 = nn.Conv2d(32,64,kernel_size=3,padding=(1,1))
         self.DownConv2 = self.DownConv(32, 64)
-        #self.Downsamp3 = nn.Conv2d(64,128,kernel_size=3,padding=(1,1))
         self.DownConv3 = self.DownConv(64, 128)
-        #self.Downsamp4 = nn.Conv2d(128,256,kernel_size=3,padding=(1,1))
         self.DownConv4 = self.DownConv(128, 256)
-        #self.Downsamp5 = nn.Conv2d(256,512,kernel_size=3,padding=(1,1))
         self.DownConv5 = self.DownConv(256, 512)
         self.BottleNeck1 = nn.Conv2d(512,1024,kernel_size=1)
         self.ReLU = nn.ReLU()
@@ -185,46 +180,10 @@ class ImageDataSet(Dataset):
         return X, y
 
 def my_loss(output, target):
-    """
-    ##################### Cross entropy & Dice Loss ##############################
-    ##############Edit: Weighted Cross entropy Loss balanced with Dice Loss Loss ##################
-    #Balancing weight for loss functions
-
-    batch_size = output.shape[0]
-    w1 = 0.3
-    w2 = 0.7
-    #Weight for cross entropy loss
-    wpos = 15
-    wneg = 0.75
-    eps = np.finfo(float).eps
-    diceLoss = (1 - (2*(torch.mul(target, output).sum())+eps) / ((torch.mul(target, target).sum() + torch.mul(output, output).sum()+eps)))
-
-    #To avoid nan
-    logo1 = torch.log(eps+output)
-    L1 = torch.mul(target,logo1)
-    L1[target == 0] = 0
-
-    l2 = 1.0 - output
-    logo2 = torch.log(eps+l2)
-    L2 = torch.mul(1-target,logo2)
-    L2[target == 1] = 0
-
-    L = - (wpos*L1+wneg*L2).sum() / (output.shape[0] * output.shape[1] * output.shape[2] * output.shape[3])
-    #print(w1*L)
-    #print(w2*diceLoss)
-    Loss = w1*L + w2*diceLoss
-    #print(Loss)
-    return Loss
-    """
+   
     ################# Weighted Focal loss + dice loss #####################
 
     #Balancing weight for loss functions
-    #batch_size = output.shape[0]
-    w1 = 1
-    w2 = 1 #Dice Loss
-    eps = np.finfo(float).eps
-    diceLoss = (1 - (2*(torch.mul(target, output).sum())+eps) / ((target.sum() + output.sum()+eps)))
-
     wpos = 50
     wneg = 0.75
     gamma = 2
@@ -243,17 +202,10 @@ def my_loss(output, target):
     L2 = torch.mul(neg_focal,L2)
     L2[target == 1] = 0
 
-    WFL = -(wpos * L1 + wneg * L2).sum()/ (output.shape[0] * output.shape[1] * output.shape[2] * output.shape[3])
-    Loss = w1*WFL #+ w2*diceLoss
-    #print(WFL)
-    #print(diceLoss)
+    Loss = -(wpos * L1 + wneg * L2).sum()/ (output.shape[0] * output.shape[1] * output.shape[2] * output.shape[3])
     return Loss
 
 if __name__ == "__main__":
-        #np.random.seed(1)
-       # torch.manual_seed(1)
-       # torch.cuda.manual_seed(1)
-
         batch_size = 16      #batch size.
         shuffle = True     #data augmentation shuffling. Set to true to shuffle
         epochs = 100       #number of epochs
@@ -261,7 +213,8 @@ if __name__ == "__main__":
         dataset_size = -1   #Change this to the number of images to test on
 
 
-        # Save data
+        #-------------------------------Data Loader--------------------------------------------
+        
         xs = [ './data/img_train_shape_AUG/'+ f for f in listdir('./data/img_train_shape_AUG/')]
         ys = [ './data/img_train2_AUG/'+ f for f in listdir('./data/img_train2_AUG/')]
 
@@ -282,18 +235,19 @@ if __name__ == "__main__":
         val_size = 1.0 * len(val_loader)
         print("Done.")
 
-        #create model, or load model
+        
+        #-----------------------------------create model, or load model------------------------------------
         model = Skeltonizer()
         #model.load_state_dict(torch.load('./models'))
         model.eval()
         print(model)
-
-        print(torch.cuda.get_device_name() if torch.cuda.is_available() else "cpu")
+        
+        #--------------------------------------------------------------------------------------------------
+        print(torch.cuda.get_device_name() if torch.cuda.is_available() else "cpu") #Make sure GPU is compatible with CUDA
         model.cuda()
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model.to(device)
 
-        criterion = nn.L1Loss()
         optimizer = optim.Adam(model.parameters(), lr=0.0001)
 
 
@@ -305,11 +259,9 @@ if __name__ == "__main__":
         gamma = 0.95 #lambda lmbda: 0.95
         scheduler = ExponentialLR(optimizer, gamma=gamma)
 
-        #train num epochs
+        #---------------------------------------------------train--------------------------------------------
         model.train()
         for i in range(epochs):
-
-            print()
             start = time.time()
             count = 0
             # samples for training
