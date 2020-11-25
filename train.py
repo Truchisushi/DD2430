@@ -1,8 +1,11 @@
+import sys
 
-
-
-
-
+if(len(sys.argv)<4 or len(sys.argv)>4):
+    print("Number of arguments are invalid")
+    
+epo = sys.argv[1]
+batch_size = sys.argv[2]
+verbosity = sys.argv[3]
 
 
 
