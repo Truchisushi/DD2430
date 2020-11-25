@@ -69,8 +69,8 @@ def main():
     data_target = 'data.pickle'
 
     #Create numpy array for input and targets and augment them
-    x = np.array([ augment_data(dir_in + '/' + img, imsize)  for img in listdir(dir_in)]).reshape(-1, imsize, imsize, 1)
-    y = np.array([ augment_data(dir_target + '/' + img, imsize)  for img in listdir(dir_target)]).reshape(-1, imsize, imsize, 1)
+    x = np.array([ augment_data(dir_in + '/' + img, imsize)  for img in listdir(dir_in)]).reshape(-1, 1, imsize, imsize)
+    y = np.array([ augment_data(dir_target + '/' + img, imsize)  for img in listdir(dir_target)]).reshape(-1, 1, imsize, imsize)
 
     #shuffle:
     indices = np.random.permutation(x.shape[0])
@@ -82,14 +82,14 @@ def main():
     print("Input data shape:", x.shape)
     print("Output data shape:", y.shape)
 
-    """
+
     for i in range(24):
         f, axarr = plt.subplots(1, 2)
         axarr[0].imshow(x[i].squeeze(), cmap='gray')
         axarr[1].imshow(y[i].squeeze(), cmap='gray')
         # plt.savefig('train' + str(count) + '.png')
         plt.show()
-    """
+
 
     #Time to split and pickle
     split = lambda a: np.split(a, [int(len(a) * 0.8), len(a)], axis=0)
