@@ -95,8 +95,8 @@ def main():
     split = lambda a: np.split(a, [int(len(a) * 0.8), len(a)], axis=0)
     d = {}
     tmp = split(x[indices, ...])
-    d['train_in'], d['train_target'], _ = split(x[indices, ...])
-    d['val_in'], d['val_target'], _ = split(y[indices, ...])
+    d['train_in'], d['val_in'], _ = split(x[indices, ...])
+    d['train_target'], d['val_target'], _ = split(y[indices, ...])
 
     pickle.dump(d, open(data_target, "wb"))
 
