@@ -20,17 +20,48 @@ from torch.optim.lr_scheduler import ExponentialLR
 from torch.utils.data import DataLoader, Dataset
 
 
+class DownSampleBlock(nn.Module):
+    def __init__(self, input_size, output_size, kernel_size=3, padding=(1, 1)):
+        """
+        DownSampling block with residuals after each conv. layer.  https://openaccess.thecvf.com/content_CVPRW_2019/papers/SkelNetOn/Panichev_U-Net_Based_Convolutional_Neural_Network_for_Skeleton_Extraction_CVPRW_2019_paper.pdf
+        :param input_size:
+        :param output_size:
+        """
+        self.kernel_size = kernel_size
+        self.padding = padding
+        self.conv2d_1 = nn.Conv2d(input_size, output_size, kernel_size=self.kernel_size, padding=self.padding)
+        self.conv2d_2 = nn.Conv2d(output_size, output_size, kernel_size=self.kernel_size, padding=self.padding)
+        self.conv2d_3 = nn.Conv2d(output_size, output_size, kernel_size=self.kernel_size, padding=self.padding)
+        self.conv2d_4 = nn.Conv2d(output_size, output_size, kernel_size=self.kernel_size, padding=self.padding)
+        self.conv2d_5 = nn.Conv2d(output_size, output_size, kernel_size=self.kernel_size, padding=self.padding)
+        self.relu = nn.ReLU()
+
+    def forward(self, input):
+        x = input
+        x = self.relu(self.conv2d_1(x) + x)
+        x = self.relu(self.conv2d_2(x) + x)
+        x = self.relu(self.conv2d_3(x) + x)
+        x = self.relu(self.conv2d_4(x) + x)
+        x = self.relu(self.conv2d_5(x) + x)
+        return x
+
+
 class Skeltonizer(nn.Module):
     def __init__(self):
 
         super(Skeltonizer, self).__init__()
         #Initiate all layers
         self.MaxPool = nn.MaxPool2d(kernel_size=2, stride=2)
-        self.DownConv1 = self.DownConv(1, 32)
-        self.DownConv2 = self.DownConv(32, 64)
-        self.DownConv3 = self.DownConv(64, 128)
-        self.DownConv4 = self.DownConv(128, 256)
-        self.DownConv5 = self.DownConv(256, 512)
+        #self.DownConv1 = self.DownConv(1, 32)
+        #self.DownConv2 = self.DownConv(32, 64)
+        #self.DownConv3 = self.DownConv(64, 128)
+        #self.DownConv4 = self.DownConv(128, 256)
+        #self.DownConv5 = self.DownConv(256, 512)
+        self.DownConv1 = DownSampleBlock(1, 32)
+        self.DownConv2 = DownSampleBlock(32, 64)
+        self.DownConv3 = DownSampleBlock(64, 128)
+        self.DownConv4 = DownSampleBlock(128, 256)
+        self.DownConv5 = DownSampleBlock(256, 512)
         self.BottleNeck1 = nn.Conv2d(512,1024,kernel_size=1)
         self.ReLU = nn.ReLU()
         self.BottleNeck2 = nn.Conv2d(1024,1024,kernel_size=1)
@@ -180,7 +211,7 @@ class ImageDataSet(Dataset):
         return X, y
 
 def my_loss(output, target):
-   
+
     ################# Weighted Focal loss + dice loss #####################
 
     #Balancing weight for loss functions
@@ -214,7 +245,7 @@ if __name__ == "__main__":
 
 
         #-------------------------------Data Loader--------------------------------------------
-        
+
         xs = [ './data/img_train_shape_AUG/'+ f for f in listdir('./data/img_train_shape_AUG/')]
         ys = [ './data/img_train2_AUG/'+ f for f in listdir('./data/img_train2_AUG/')]
 
@@ -235,13 +266,13 @@ if __name__ == "__main__":
         val_size = 1.0 * len(val_loader)
         print("Done.")
 
-        
+
         #-----------------------------------create model, or load model------------------------------------
         model = Skeltonizer()
         #model.load_state_dict(torch.load('./models'))
         model.eval()
         print(model)
-        
+
         #--------------------------------------------------------------------------------------------------
         print(torch.cuda.get_device_name() if torch.cuda.is_available() else "cpu") #Make sure GPU is compatible with CUDA
         model.cuda()
