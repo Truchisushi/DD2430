@@ -27,7 +27,7 @@ Be sure to remove .DS_Store
 
  """
 
-def augment_data(f, imsize):
+def prepare_data(f, imsize, aug=True):
     """
     Augm
     :param f: file path
@@ -37,30 +37,31 @@ def augment_data(f, imsize):
     pic = Image.open(f).convert('F')  #Open
     #w, h = pic.size
 
-    imgs_array = np.empty((8, imsize, imsize))
+    imgs_array = np.empty((8 if aug else 1, imsize, imsize))
 
     imgs_array[0, ...] = np.array(pic)
 
-    im = pic.rotate(90)
-    imgs_array[1, ...] = np.array(im)
+    if(aug):
+        im = pic.rotate(90)
+        imgs_array[1, ...] = np.array(im)
 
-    im = pic.rotate(180)
-    imgs_array[2, ...] = np.array(im)
+        im = pic.rotate(180)
+        imgs_array[2, ...] = np.array(im)
 
-    im = pic.rotate(270)
-    imgs_array[3, ...] = np.array(im)
+        im = pic.rotate(270)
+        imgs_array[3, ...] = np.array(im)
 
-    im = ImageOps.mirror(pic)
-    imgs_array[4, ...] = np.array(im)
+        im = ImageOps.mirror(pic)
+        imgs_array[4, ...] = np.array(im)
 
-    im = ImageOps.mirror(pic).rotate(90)
-    imgs_array[5, ...] = np.array(im)
+        im = ImageOps.mirror(pic).rotate(90)
+        imgs_array[5, ...] = np.array(im)
 
-    im = ImageOps.mirror(pic).rotate(180)
-    imgs_array[6, ...] = np.array(im)
+        im = ImageOps.mirror(pic).rotate(180)
+        imgs_array[6, ...] = np.array(im)
 
-    im = ImageOps.mirror(pic).rotate(270)
-    imgs_array[7, ...] = np.array(im)
+        im = ImageOps.mirror(pic).rotate(270)
+        imgs_array[7, ...] = np.array(im)
 
 
     return imgs_array / 255.0   #Normalize
@@ -88,12 +89,12 @@ def main(args):
     data_target = 'data.pickle'
 
     #Create numpy array for input and targets and augment them
-    x = np.array([augment_data(dir_in + '/' + img, imsize) for img in listdir(dir_in)]).reshape(-1, 1, imsize, imsize).astype(float)
-    y = np.array([augment_data(dir_target + '/' + img, imsize) for img in listdir(dir_target)]).reshape(-1, 1, imsize, imsize).astype(float)
+    x = np.array([prepare_data(dir_in + '/' + img, imsize) for img in listdir(dir_in)]).reshape(-1, 1, imsize, imsize).astype(float)
+    y = np.array([prepare_data(dir_target + '/' + img, imsize) for img in listdir(dir_target)]).reshape(-1, 1, imsize, imsize).astype(float)
 
     if use_testset:
-        x_test = np.array([augment_data(test_dir_in + '/' + img, imsize) for img in listdir(test_dir_in)]).reshape(-1, 1, imsize, imsize).astype(float)
-        y_test = np.array([ augment_data(test_dir_target + '/' + img, imsize)  for img in listdir(test_dir_target)]).reshape(-1, 1, imsize, imsize).astype(float)
+        x_test = np.array([prepare_data(test_dir_in + '/' + img, imsize, aug=False) for img in listdir(test_dir_in)]).reshape(-1, 1, imsize, imsize).astype(float)
+        y_test = np.array([prepare_data(test_dir_target + '/' + img, imsize, aug=False)  for img in listdir(test_dir_target)]).reshape(-1, 1, imsize, imsize).astype(float)
 
     #shuffle:
     indices = np.random.permutation(x.shape[0])
@@ -139,7 +140,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Generate data.")
-    parser.add_argument('-t', '--testset', type=bool, help='Use a predifned testset at "data/validation_input_AUG" & "data/validation_output_AUG"', default=True)
+    parser.add_argument('-t', '--testset', type=bool, help='Use a predifned testset at "data/validation_input" & "data/validation_output"', default=True)
     args = parser.parse_args()
     main(args)
 
