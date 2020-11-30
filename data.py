@@ -4,6 +4,8 @@ from os import listdir
 
 import numpy as np
 
+import argparse
+
 from PIL import Image, ImageOps
 from matplotlib import image
 import matplotlib.pyplot as plt
@@ -13,6 +15,8 @@ from torchvision import transforms
 read data from folders:
     Starting Kit Pixel/img_train_shape
     Starting Ket Pixel/img_train
+    
+    or from specific folder with already predetermined validation set.
 
 Augment the data: True
 
@@ -61,16 +65,35 @@ def augment_data(f, imsize):
 
     return imgs_array / 255.0   #Normalize
 
-def main():
+def main(args):
     imsize = 256
 
+    use_testset = args.testset
+
+    #These are to generate random datasets.
     dir_in = './Starting Kit Pixel/img_train_shape'
     dir_target = './Starting Kit Pixel/img_train2'
+    test_dir_in = './data/validation_input'
+    test_dir_target = './data/validation_output'
+
+    x, y, x_test, y_test = np.array([]), np.array([]), np.array([]), np.array([])
+
+    if use_testset:
+        dir_in = './data/img_train_shape'
+        dir_target = './data/img_train2'
+
+
+
+
     data_target = 'data.pickle'
 
     #Create numpy array for input and targets and augment them
-    x = np.array([ augment_data(dir_in + '/' + img, imsize)  for img in listdir(dir_in)]).reshape(-1, 1, imsize, imsize)
-    y = np.array([ augment_data(dir_target + '/' + img, imsize)  for img in listdir(dir_target)]).reshape(-1, 1, imsize, imsize)
+    x = np.array([augment_data(dir_in + '/' + img, imsize) for img in listdir(dir_in)]).reshape(-1, 1, imsize, imsize).astype(float)
+    y = np.array([augment_data(dir_target + '/' + img, imsize) for img in listdir(dir_target)]).reshape(-1, 1, imsize, imsize).astype(float)
+
+    if use_testset:
+        x_test = np.array([augment_data(test_dir_in + '/' + img, imsize) for img in listdir(test_dir_in)]).reshape(-1, 1, imsize, imsize).astype(float)
+        y_test = np.array([ augment_data(test_dir_target + '/' + img, imsize)  for img in listdir(test_dir_target)]).reshape(-1, 1, imsize, imsize).astype(float)
 
     #shuffle:
     indices = np.random.permutation(x.shape[0])
@@ -79,8 +102,8 @@ def main():
 
 
 
-    print("Input data shape:", x.shape)
-    print("Output data shape:", y.shape)
+    #print("Input data shape:", x.shape)
+    #print("Output data shape:", y.shape)
 
 
     for i in range(24):
@@ -91,19 +114,34 @@ def main():
         plt.show()
 
 
-    #Time to split and pickle
-    split = lambda a: np.split(a, [int(len(a) * 0.8), len(a)], axis=0)
+    #Time to split into training, validation and test sets and pickle
+
+    split = lambda a: np.split(a, [int(len(a) * 0.8), int(len(a) * 0.9), len(a)], axis=0)
+
+    if use_testset:
+        split = lambda a: np.split(a, [int(len(a) * 0.8), len(a)], axis=0)
+
     d = {}
-    tmp = split(x[indices, ...])
-    d['train_in'], d['val_in'], _ = split(x[indices, ...])
-    d['train_target'], d['val_target'], _ = split(y[indices, ...])
+    #tmp = split(x[indices, ...])
+    if use_testset:
+        d['train_in'], d['val_in'], _ = split(x[indices, ...])
+        d['train_target'], d['val_target'], _ = split(y[indices, ...])
+        d['test_in'] = x_test
+        d['test_target'] = y_test
+
+    else:
+        d['train_in'], d['val_in'], d['test_in'], _ = split(x[indices, ...])
+        d['train_target'], d['val_target'], d['test_target'], _ = split(y[indices, ...])
 
     pickle.dump(d, open(data_target, "wb"))
 
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser("Generate data.")
+    parser.add_argument('-t', '--testset', type=bool, help='Use a predifned testset at "data/validation_input_AUG" & "data/validation_output_AUG"', default=True)
+    args = parser.parse_args()
+    main(args)
 
 
 
