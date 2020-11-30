@@ -24,11 +24,14 @@ class DownSampleBlock(nn.Module):
     def __init__(self, input_size, output_size, kernel_size=3, padding=(1, 1)):
         """
         DownSampling block with residuals after each conv. layer.  https://openaccess.thecvf.com/content_CVPRW_2019/papers/SkelNetOn/Panichev_U-Net_Based_Convolutional_Neural_Network_for_Skeleton_Extraction_CVPRW_2019_paper.pdf
+        To match the dimensions, a downconv 1x1, but with stride 1 to conserve dimensions is used: https://arxiv.org/pdf/1512.03385.pdf
         :param input_size:
         :param output_size:
         """
+        super(DownSampleBlock, self).__init__()
         self.kernel_size = kernel_size
         self.padding = padding
+        self.downconv = nn.Conv2d(input_size, output_size,kernel_size=1,padding=(0,0))   #
         self.conv2d_1 = nn.Conv2d(input_size, output_size, kernel_size=self.kernel_size, padding=self.padding)
         self.conv2d_2 = nn.Conv2d(output_size, output_size, kernel_size=self.kernel_size, padding=self.padding)
         self.conv2d_3 = nn.Conv2d(output_size, output_size, kernel_size=self.kernel_size, padding=self.padding)
@@ -36,10 +39,12 @@ class DownSampleBlock(nn.Module):
         self.conv2d_5 = nn.Conv2d(output_size, output_size, kernel_size=self.kernel_size, padding=self.padding)
         self.relu = nn.ReLU()
 
-    def forward(self, input):
+    def forward(self, input): #Forward pass with residual elements
         x = input
-        x = self.relu(self.conv2d_1(x) + x)
-        x = self.relu(self.conv2d_2(x) + x)
+        tmp = self.downconv(x)
+        tmp2 = self.conv2d_1(x)
+        x = self.relu(self.conv2d_1(x) + self.downconv(x))  #Projection Shortcut
+        x = self.relu(self.conv2d_2(x) + x)     #Identity shortcuts
         x = self.relu(self.conv2d_3(x) + x)
         x = self.relu(self.conv2d_4(x) + x)
         x = self.relu(self.conv2d_5(x) + x)
@@ -104,11 +109,6 @@ class Skeltonizer(nn.Module):
         return upc
 
     def forward(self, x):
-        #apply distance transform:
-
-
-
-
         #Expand feature space for input image
         #x = self.inputConv(x)
         #Decoder
@@ -117,7 +117,6 @@ class Skeltonizer(nn.Module):
         x1 = self.DownConv1(x)
         #x1 = self.Downsamp1(x1)
         x2 = self.MaxPool(x1)
-
 
         #x3 = self.Downsamp2(x2)
         #x3 = self.DownConv2(x3) + x3
@@ -215,9 +214,11 @@ def my_loss(output, target):
     ################# Weighted Focal loss + dice loss #####################
 
     #Balancing weight for loss functions
+    #Loss function hyper-parameters
     wpos = 50
     wneg = 0.75
     gamma = 2
+    eps = np.finfo(float).eps
 
     logo1 = torch.log(eps+output)
     L1 = torch.mul(target,logo1)
@@ -235,106 +236,3 @@ def my_loss(output, target):
 
     Loss = -(wpos * L1 + wneg * L2).sum()/ (output.shape[0] * output.shape[1] * output.shape[2] * output.shape[3])
     return Loss
-
-if __name__ == "__main__":
-        batch_size = 16      #batch size.
-        shuffle = True     #data augmentation shuffling. Set to true to shuffle
-        epochs = 100       #number of epochs
-        num_workers = 4
-        dataset_size = -1   #Change this to the number of images to test on
-
-
-        #-------------------------------Data Loader--------------------------------------------
-
-        xs = [ './data/img_train_shape_AUG/'+ f for f in listdir('./data/img_train_shape_AUG/')]
-        ys = [ './data/img_train2_AUG/'+ f for f in listdir('./data/img_train2_AUG/')]
-
-
-        xs_val = ['./data/validation_input/'+ f for f in listdir('./data/validation_input/')]
-        ys_val = [ './data/validation_output/'+ f for f in listdir('./data/validation_output/')]
-
-        train_data = ImageDataSet(xs, ys, dataset_size)
-        val_data = ImageDataSet(xs_val, ys_val)
-
-        print("Configuring DataLoader for training set")
-        train_loader = DataLoader(dataset = train_data, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=True)
-        train_size = 1.0 * len(train_loader)
-        print("Done.")
-
-        print("Configuring DataLoader for Validation set")
-        val_loader = DataLoader(dataset=val_data, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True)
-        val_size = 1.0 * len(val_loader)
-        print("Done.")
-
-
-        #-----------------------------------create model, or load model------------------------------------
-        model = Skeltonizer()
-        #model.load_state_dict(torch.load('./models'))
-        model.eval()
-        print(model)
-
-        #--------------------------------------------------------------------------------------------------
-        print(torch.cuda.get_device_name() if torch.cuda.is_available() else "cpu") #Make sure GPU is compatible with CUDA
-        model.cuda()
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        model.to(device)
-
-        optimizer = optim.Adam(model.parameters(), lr=0.0001)
-
-
-        e = np.arange(0, epochs)
-        train_losses = np.zeroes(epochs)
-        val_losses = np.zeroes(epochs)
-
-        #Adjust learning rate by multiplying LR-factor with lambda:
-        gamma = 0.95 #lambda lmbda: 0.95
-        scheduler = ExponentialLR(optimizer, gamma=gamma)
-
-        #---------------------------------------------------train--------------------------------------------
-        model.train()
-        for i in range(epochs):
-            start = time.time()
-            count = 0
-            # samples for training
-            train_loss = 0.0
-            val_loss = 0.0
-            for data, target in train_loader:
-                print(count)
-                data = data.to(device)
-                target = target.to(device)
-
-                optimizer.zero_grad()   # zero the gradient buffers
-                output = model(data)
-                loss = my_loss(output, target)
-                loss.backward()
-                optimizer.step()
-
-                train_losses[i] += loss.item()/train_size
-
-            #model.eval()
-            with torch.no_grad():
-                for data, target in val_loader:
-                    data = data.to(device)
-                    target = target.to(device)
-                    output = model(data)
-                    loss = my_loss(output, target)
-                    val_losses[i] += loss.item()/val_size
-
-            end = time.time()
-            lr = 0
-            for param_group in optimizer.param_groups: lr=param_group['lr']
-            print("Epoch %d/%d, %d s, loss: %f, val: %f, lr: %f" % (i, epochs, end - start, train_losses[i], val_losses[i], lr))
-
-            scheduler.step()
-
-            if (i % 5 == 0):
-                print("Saving model!")
-                torch.save(model.state_dict(), './models_e'+str(i))
-        # save the model after the training
-        torch.save(model.state_dict(), './models')
-
-        plt.plot(e, train_losses)
-        plt.plot(e, val_losses)
-        plt.legend(["train", "val"])
-        plt.savefig("loss_plot.png")
-        plt.show()
