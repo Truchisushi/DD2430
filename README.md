@@ -26,3 +26,9 @@ The data is the SkelNetOn Challenge dataset. The data is comprised by black and 
 
 ## Architecture
 ![Network Schematic](https://github.com/Truchisushi/DD2430/blob/main/images/Network%20Architecture%201.png?raw=true)
+
+## Sample predictions
+![Sample1](https://github.com/Truchisushi/DD2430/blob/main/images/models_e99_loss0.0508_thresh0.8000000000000002_pred19.png)
+![Sample1](https://github.com/Truchisushi/DD2430/blob/main/images/models_e99_loss0.0508_thresh0.8000000000000002_pred20.png)
+![Sample1](https://github.com/Truchisushi/DD2430/blob/main/images/models_e99_loss0.0508_thresh0.8000000000000002_pred21.png)
+![Sample1](https://github.com/Truchisushi/DD2430/blob/main/images/models_e99_loss0.0508_thresh0.8000000000000002_pred22.png)
